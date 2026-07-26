@@ -1186,7 +1186,16 @@ class World:
         # Spawn the ego vehicle (Tesla Cybertruck)
         blueprint_library = self.world.get_blueprint_library()
         blueprint = blueprint_library.find('vehicle.tesla.cybertruck')
-        self.vehicle = self.world.spawn_actor(blueprint, START_POSITION)
+        spawn_points = self.world.get_map().get_spawn_points()
+        self.vehicle = None
+
+        for spawn_point in spawn_points:
+            self.vehicle = self.world.try_spawn_actor(blueprint, spawn_point)
+            if self.vehicle is not None:
+                break
+
+        if self.vehicle is None:
+            raise RuntimeError("Could not find a free spawn point")
 
         # Attach collision sensor
         self.collision_sensor = CollisionSensor(self.vehicle, self.hud)
