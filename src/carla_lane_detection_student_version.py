@@ -743,8 +743,14 @@ class HUD:
 
         if lines is not None:
             for line in lines:
-                x1, y1, x2, y2 = line[0]
-                cv2.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 3)
+                x1, y1, x2, y2 = np.asarray(line).reshape(-1)[:4]
+                cv2.line(
+                    line_image,
+                    (int(x1), int(y1)),
+                    (int(x2), int(y2)),
+                    (0, 255, 0),
+                    3
+                )
 
         # Overlay detected lines onto the original camera frame.
         final_result = cv2.addWeighted(
