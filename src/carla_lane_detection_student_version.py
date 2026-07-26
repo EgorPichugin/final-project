@@ -300,6 +300,8 @@ class HUD:
         # over the last SMOOTHING_WINDOW entries. This prevents jittery lanes.
         self.left_a, self.left_b, self.left_c = [], [], []
         self.right_a, self.right_b, self.right_c = [], [], []
+        self.frame_count = 0
+        self.images_saved = False
 
     # ---- Notifications (simple text overlay system) ----
 
@@ -806,6 +808,38 @@ class HUD:
         result = raw_image
 
         if raw_image is not None:
+            self.frame_count += 1
+
+            if semantic_image is not None:
+                # Extract lane pixels from semantic segmentation.
+                segmented_lanes = self._extract_lane_mask(semantic_image)
+
+                # Restrict detection to the road area.
+                segmented_lanes, _ = self._apply_roi(
+                    segmented_lanes,
+                    raw_image.shape
+                )
+
+                # Improve thin lane pixels using dilation.
+                improved_lanes = self._dilate_mask(segmented_lanes)
+
+                # Edge detection from the raw RGB image.
+                gray = cv2.cvtColor(raw_image, cv2.COLOR_BGR2GRAY)
+                blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+                edges = cv2.Canny(blurred, 50, 150)
+
+                # Save one stable frame after the simulation starts.
+                if self.frame_count >= 100 and not self.images_saved:
+                    os.makedirs("task1_results", exist_ok=True)
+
+                    cv2.imwrite("task1_results/01_raw.png", raw_image)
+                    cv2.imwrite("task1_results/02_semantic.png", semantic_image)
+                    cv2.imwrite("task1_results/03_edges.png", edges)
+                    cv2.imwrite("task1_results/04_segmented_lanes.png", segmented_lanes)
+                    cv2.imwrite("task1_results/05_improved_lanes.png", improved_lanes)
+
+                    self.images_saved = True
+                    print("Task 1 images saved to task1_results/")
             (
                 result,
                 img_gray,
