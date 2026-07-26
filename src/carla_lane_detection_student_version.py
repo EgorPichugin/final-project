@@ -336,8 +336,10 @@ class HUD:
         mask : np.ndarray, shape (H, W), dtype uint8
             Binary mask: 255 where lane lines are detected, 0 elsewhere.
         """
-        # Check only the Green channel (index 1 in BGR) for the value 234
-        mask = (semantic_image[:, :, 1] == 234).astype(np.uint8) * 255
+        lower = np.array([0, 200, 200], dtype=np.uint8)
+        upper = np.array([80, 255, 255], dtype=np.uint8)
+
+        mask = cv2.inRange(semantic_image, lower, upper)
         return mask
 
     def _apply_roi(self, mask, image_shape):
