@@ -702,60 +702,66 @@ class HUD:
 
 
     def _detect_lanes_simple_opencv(self, img_bgr):
-        """
-        Student exercise: implement the simple lane detection pipeline.
-
-        Goal:
-        BGR/RGB -> grayscale -> Gaussian blur -> Canny -> ROI -> Hough -> overlay
-        """
         if img_bgr is None:
             return None, None, None, None, None, None, None
 
-        # 1) Original image
         original_img = img_bgr.copy()
 
-        # 2) Convert image to grayscale
-        # TODO: use cv2.cvtColor(...)
-        img_gray = None
+        # Convert the RGB camera frame to grayscale.
+        img_gray = cv2.cvtColor(original_img, cv2.COLOR_BGR2GRAY)
 
-        # 3) Apply Gaussian blur
-        # TODO: use cv2.GaussianBlur(...)
-        img_blur = None
+        # Reduce noise before edge detection.
+        img_blur = cv2.GaussianBlur(img_gray, (5, 5), 0)
 
-        # 4) Apply Canny edge detection
-        # TODO: use cv2.Canny(...)
-        edges = None
+        # Detect strong intensity edges.
+        edges = cv2.Canny(img_blur, 50, 150)
 
-        # 5) Get image dimensions
-        # TODO: get height and width from edges.shape
-        height, width = None, None
+        height, width = edges.shape
 
-        # 6) Define triangular ROI vertices
-        # TODO: create np.array with bottom-left, center-apex, bottom-right
-        roi_vertices = None
+        # Keep only the road region in front of the vehicle.
+        roi_vertices = np.array([[
+            (0, height),
+            (width // 2, int(height * 0.55)),
+            (width, height)
+        ]], dtype=np.int32)
 
-        # 7) Create and fill ROI mask
-        # TODO: create zeros_like mask and call cv2.fillPoly(...)
-        mask = None
+        mask = np.zeros_like(edges)
+        cv2.fillPoly(mask, roi_vertices, 255)
+        masked_edges = cv2.bitwise_and(edges, mask)
 
-        # 8) Apply ROI mask to Canny edges
-        # TODO: use cv2.bitwise_and(...)
-        masked_edges = None
+        # Detect straight lane-line segments.
+        lines = cv2.HoughLinesP(
+            masked_edges,
+            rho=1,
+            theta=np.pi / 180,
+            threshold=30,
+            minLineLength=25,
+            maxLineGap=40
+        )
 
-        # 9) Detect line segments using HoughLinesP
-        # TODO: use cv2.HoughLinesP(...)
-        lines = None
-
-        # 10) Draw detected line segments on a blank image
         line_image = np.zeros_like(original_img)
-        # TODO: loop over lines and draw them using cv2.line(...)
 
-        # 11) Blend original image and detected lines
-        # TODO: use cv2.addWeighted(...)
-        final_result = None
+        if lines is not None:
+            for line in lines:
+                x1, y1, x2, y2 = line[0]
+                cv2.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 3)
 
-        return final_result, img_gray, img_blur, edges, mask, masked_edges, line_image
-    # ---- Display / Render ----
+        # Overlay detected lines onto the original camera frame.
+        final_result = cv2.addWeighted(
+            original_img, 0.8,
+            line_image, 1.0,
+            0
+        )
+
+        return (
+            final_result,
+            img_gray,
+            img_blur,
+            edges,
+            mask,
+            masked_edges,
+            line_image
+        )
 
     def render(self, semantic_image, raw_image):
         """
